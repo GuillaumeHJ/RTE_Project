@@ -96,19 +96,16 @@ class VAE(nn.Module):
         opt = torch.optim.Adam(self.parameters(), lr=lr)
         TL = []
         VL = []
-        # x_reduced = []
         for i in tqdm(range(epoch)):
             for t, x in enumerate(train_dataloader):
                 opt.zero_grad
                 decoded_x = self.forward(x)
-                # x_red = VAE(x)[1]
                 loss = ((x - decoded_x) ** 2).sum() / (x.shape[0]) + self.encoder.kl
                 loss.backward()
                 opt.step()
             tl, vl = self.evaluate()
             TL.append(tl)
             VL.append(vl)
-            # x_reduced.append(x_red)
         return TL, VL
 
 
@@ -127,7 +124,7 @@ class CondDecoder(nn.Module):
         self.decoder_output_layer = nn.Linear(hidden_layer_dim[0], 48)
         nn.init.kaiming_normal_(self.decoder_output_layer.weight)
 
-    def forward(self, x, ):
+    def forward(self, x):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
@@ -159,11 +156,11 @@ class CondVAE(nn.Module):
         val_num_sample = 0
         with torch.no_grad():
             for x in train_cond_dataloader:
-                decoded_x = self.forward(x)[0]
+                decoded_x = self.forward(x)
                 train_loss += ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
                 train_num_sample += len(x)
             for x in val_cond_dataloader:
-                decoded_x = self.forward(x)[0]
+                decoded_x = self.forward(x)
                 val_loss += ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
                 val_num_sample += len(x)
         return train_loss / train_num_sample, val_loss / val_num_sample
@@ -175,8 +172,7 @@ class CondVAE(nn.Module):
         for i in tqdm(range(epoch)):
             for t, x in enumerate(train_cond_dataloader):
                 opt.zero_grad
-                decoded_x = self.forward(x)[0]
-
+                decoded_x = self.forward(x)
                 loss = ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
                 loss.backward()
                 opt.step()
@@ -194,26 +190,25 @@ epochs = 20
 
 
 
-def plot_training(vae, latent_space_dim, hidden_layer_dim, lr, epochs, conditioned=True):
+def plot_training(vae, lr, epochs, conditioned=True):
 
     l, v = vae.train(epochs, lr)
-
     plt.plot(np.arange(len(l)), l, label='train')
     plt.plot(np.arange(len(v)), v, label='val')
     plt.title("VAE")
     plt.legend()
     plt.show()
-
+    n= 50
     if conditioned:
-        plt.plot(np.arange(48), vae(validation_cond[200].unsqueeze(0)).detach().squeeze(0).numpy())
-        plt.plot(np.arange(48), validation_set[200].unsqueeze(0).detach().squeeze(0).numpy())
+        plt.plot(np.arange(48), vae(validation_cond[n].unsqueeze(0)).detach().squeeze(0).numpy())
+        plt.plot(np.arange(48), validation_set[n].unsqueeze(0).detach().squeeze(0).numpy())
         plt.title("Conditional VAE")
     else:
-        plt.plot(np.arange(48), vae(validation_set[200].unsqueeze(0)).detach().squeeze(0).numpy())
-        plt.plot(np.arange(48), validation_set[200].unsqueeze(0).detach().squeeze(0).numpy())
+        plt.plot(np.arange(48), vae(validation_set[n].unsqueeze(0)).detach().squeeze(0).numpy())
+        plt.plot(np.arange(48), validation_set[n].unsqueeze(0).detach().squeeze(0).numpy())
         plt.title("Classic VAE")
 
     plt.show()
 
 #vae = CondVAE(latent_space_dim, hidden_layer_dim)
-#plot_training(vae, latent_space_dim, hidden_layer_dim, lr, epochs, True)
+#plot_training(vae, lr, epochs, True)
