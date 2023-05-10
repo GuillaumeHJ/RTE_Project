@@ -159,11 +159,11 @@ class CondVAE(nn.Module):
         val_num_sample = 0
         with torch.no_grad():
             for x in train_cond_dataloader:
-                decoded_x = self.forward(x)[0]
+                decoded_x = self.forward(x)
                 train_loss += ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
                 train_num_sample += len(x)
             for x in val_cond_dataloader:
-                decoded_x = self.forward(x)[0]
+                decoded_x = self.forward(x)
                 val_loss += ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
                 val_num_sample += len(x)
         return train_loss / train_num_sample, val_loss / val_num_sample
@@ -175,7 +175,7 @@ class CondVAE(nn.Module):
         for i in tqdm(range(epoch)):
             for t, x in enumerate(train_cond_dataloader):
                 opt.zero_grad
-                decoded_x = self.forward(x)[0]
+                decoded_x = self.forward(x)
 
                 loss = ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
                 loss.backward()

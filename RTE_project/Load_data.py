@@ -13,6 +13,7 @@ def load(path, conditionned=True):
     os.listdir(path)
     dataset_csv = os.path.join(path, "data_conso_2012-2021.parquet.brotli")
     df_data = pd.read_parquet(dataset_csv)
+    df_data["weekday"] = df_data['utc_datetime'].dt.weekday
 
     # Converting dataframes to normalized tensors of shape (N, 48)
     N = len(df_data)
@@ -47,6 +48,23 @@ def load(path, conditionned=True):
     mean_temp = torch.mean(dataset_temp)
     std_temp = torch.std(dataset_temp)
 
+    dataset_day = torch.Tensor(df_data['weekday'].values)
+    dataset_day = dataset_day[:N - 2 * 365 * 48 - 48]  # without pandemic years
+
+    training_set_day = dataset_day[:N - 4 * 365 * 48 - 48]  # 2012-2017
+    training_set_day = training_set_day.view((6 * 365 + 2, 48)).mean(axis=1)
+
+    validation_set_day = dataset_day[N - 4 * 365 * 48 - 48:N - 3 * 365 * 48 - 48]  # 2018
+    validation_set_day = validation_set_day.view((365, 48)).mean(axis=1)
+
+    test_set_day = dataset_day[N - 3 * 365 * 48 - 48:N - 2 * 365 * 48 - 48]  # 2019
+    test_set_day = test_set_day.view((365, 48)).mean(axis=1)
+
+
+
+
+
+
     dataset_temp = (dataset_temp - mean_temp) / std_temp  # fct nom scikit learn
 
     training_set_temp = dataset_temp[:N - 4 * 365 * 48 - 48]  # 2012-2017
@@ -58,9 +76,15 @@ def load(path, conditionned=True):
     test_set_temp = dataset_temp[N - 3 * 365 * 48 - 48:N - 2 * 365 * 48 - 48]  # 2019
     test_set_temp = test_set_temp.view((365, 48)).mean(axis=1) * 2
 
+    #Adding temperature to the dataset
     training_cond = torch.cat((training_set, training_set_temp[:, None]), dim=1)
     validation_cond = torch.cat((validation_set, validation_set_temp[:, None]), dim=1)
     test_cond = torch.cat((test_set, test_set_temp[:, None]), dim=1)
+
+    #Adding the daytime to the dataset
+    training_cond = torch.cat((training_cond, training_set_day[:, None]), dim=1)
+    validation_cond = torch.cat((validation_cond, validation_set_day[:, None]), dim=1)
+    test_cond = torch.cat((test_cond, test_set_day[:, None]), dim=1)
 
     train_dataloader = DataLoader(training_set, batch_size=64, shuffle=True)
     val_dataloader = DataLoader(validation_set, batch_size=64, shuffle=True)
