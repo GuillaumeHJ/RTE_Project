@@ -27,7 +27,6 @@ def generate_scenarios(trained_model, n=100):
     for _ in range(n):
         scenarios.append(trained_model.forward(validation_cond)[200].detach().numpy())
     mean = np.mean(scenarios, axis=0)
-    print(mean)
 
     for scenario in scenarios:
         biases.append(np.mean(mean - scenario))
@@ -38,8 +37,6 @@ def generate_scenarios(trained_model, n=100):
 
 
 q3, mean, q1, scenarios = generate_scenarios(vae_cond, 200)
-
-
 
 plt.plot(np.arange(48), q1, color='green', linestyle='dashed')
 plt.plot(np.arange(48), mean, color='red', linestyle='dashed')

@@ -12,35 +12,39 @@ import pandas as pd
 path = "data/"
 
 train_dataloader, val_dataloader, test_dataloader, training_set, validation_set, test_set = Load_data.load(path, False)
-train_cond_dataloader, val_cond_dataloader, test_cond_dataloader, training_cond, validation_cond, test_cond = Load_data.load(path, True)
+train_cond_dataloader, val_cond_dataloader, test_cond_dataloader, training_cond, validation_cond, test_cond = Load_data.load(
+    path, True)
+
 
 def histogram_error(vae, conditioned=False):
     err = []
     if conditioned:
         for x in validation_cond:
-            decoded_x = vae(x[None,:])
+            decoded_x = vae(x[None, :])
             err.append((((x[:48] - decoded_x[0]) ** 2).sum() / (x.shape[0] - 1)).detach().numpy())
     else:
         for x in validation_set:
-            decoded_x = vae(x[None,:])
+            decoded_x = vae(x[None, :])
             err.append(((x - decoded_x) ** 2).mean().detach().numpy())
     plt.hist(err)
     plt.show()
     return err
 
+
 def plot_year_err(vae, conditioned=False):
     err = []
     if conditioned:
         for x in validation_cond:
-            decoded_x = vae(x[None,:])
+            decoded_x = vae(x[None, :])
             err.append((((x[:48] - decoded_x[0]) ** 2).sum() / (x.shape[0] - 1)).detach().numpy())
     else:
         for x in validation_set:
-            decoded_x = vae(x[None,:])
+            decoded_x = vae(x[None, :])
             err.append(((x - decoded_x) ** 2).mean().detach().numpy())
     abs = np.arange(365)
     plt.plot(abs, err)
     plt.show()
+
 
 # hyper parameters
 latent_space_dim = 5
@@ -51,8 +55,9 @@ epochs = 20
 vae = VAE_model.CondVAE(latent_space_dim, hidden_layer_dim)
 vae.train(epochs, lr)
 
-err= histogram_error(vae,True)
-plot_year_err(vae,True)
+err = histogram_error(vae, True)
+plot_year_err(vae, True)
+
 
 def make_chronics(df, toshape_columns, pivot_indexcol, pivot_columncol=None):
     """[summary]
@@ -121,9 +126,10 @@ def apply_scaler(df, column, df_chronic, reference_window):
 
     return df_chronic, scaler
 
-#Construction of factorMatrix and factorDesc
 
-#importation des données calendaires
+# Construction of factorMatrix and factorDesc
+
+# importation des données calendaires
 
 """
 df_data.utc_datetime = pd.to_datetime(df_data.utc_datetime, utc=True)

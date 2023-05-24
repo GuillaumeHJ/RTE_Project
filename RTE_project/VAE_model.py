@@ -9,13 +9,33 @@ import numpy as np
 path = "data/"
 
 train_dataloader, val_dataloader, test_dataloader, training_set, validation_set, test_set = Load_data.load(path,
-                                                                                                              False)
+                                                                                                           False)
 train_cond_dataloader, val_cond_dataloader, test_cond_dataloader, training_cond, validation_cond, test_cond = Load_data.load(
     path, True)
 
 
-
 # **************************************Building a VAE***************************************
+
+def compute_kernel(x, y):
+    x_size = x.size(0)
+    y_size = y.size(0)
+    dim = x.size(1)
+    x = x.unsqueeze(1) # (x_size, 1, dim)
+    y = y.unsqueeze(0) # (1, y_size, dim)
+    tiled_x = x.expand(x_size, y_size, dim)
+    tiled_y = y.expand(x_size, y_size, dim)
+    kernel_input = (tiled_x - tiled_y).pow(2).mean(2)/float(dim)
+    return torch.exp(-kernel_input) # (x_size, y_size)
+
+def compute_mmd(x, y):
+    x_kernel = compute_kernel(x, x)
+    y_kernel = compute_kernel(y, y)
+    xy_kernel = compute_kernel(x, y)
+    mmd = x_kernel.mean() + y_kernel.mean() - 2*xy_kernel.mean()
+    return mmd
+
+
+
 
 class VariationalEncoder(nn.Module):
     def __init__(self, latent_space_dim, hidden_layer_dim):
@@ -24,21 +44,17 @@ class VariationalEncoder(nn.Module):
         self.fc = [nn.Linear(48, hidden_layer_dim[0])]
         for i in range(len(hidden_layer_dim) - 1):
             self.fc.append(nn.Linear(hidden_layer_dim[i], hidden_layer_dim[i + 1]))
-        # for linear in self.fc:
-        #   nn.init.kaiming_normal_(linear.weight)
-        self.var = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
-        self.mean = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
+        self.log_var = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
+        self.mu = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
         self.normal = torch.distributions.Normal(0, 1)
         self.kl = 0
 
     def forward(self, x):
         for i in range(len(self.fc)):
-            x = self.fc[i](x)
-            x = F.relu(x)
-        log_var = self.var(x)
-        mu = self.mean(x)
+            x = F.relu(self.fc[i](x))
+        log_var = self.log_var(x)
+        mu = self.mu(x)
         encoded = mu + torch.exp(log_var / 2) * self.normal.sample(mu.shape)
-        # self.kl = torch.sum(s**2 + m**2 - torch.log(1e-8 + s) - 1/2) ##KL divergence between the standard gaussian distribution and the generated distribution
         self.kl = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
         return encoded
 
@@ -57,9 +73,8 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         for i in range(len(self.fc) - 1):
-            x = self.fc[i](x)
-            x = F.relu(x)
-        x = self.fc[-1](x)
+            x = F.relu(self.fc[i](x))
+        x = F.relu(self.fc[-1](x))
         return x
 
 
@@ -109,7 +124,7 @@ class VAE(nn.Module):
         return TL, VL
 
 
-# *****************************Conditionned VAE modules***************************************
+# *****************************Conditioned VAE modules***************************************
 
 
 class CondDecoder(nn.Module):
@@ -173,7 +188,10 @@ class CondVAE(nn.Module):
             for t, x in enumerate(train_cond_dataloader):
                 opt.zero_grad
                 decoded_x = self.forward(x)
-                loss = ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
+                z = self.latent(x)
+                true_samples = torch.randn(64, latent_space_dim, requires_grad=False)
+                mmd = compute_mmd(true_samples, z)
+                loss = ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + (0.3 * self.encoder.kl) + (42 * mmd)
                 loss.backward()
                 opt.step()
             tl, vl = self.evaluate()
@@ -183,22 +201,20 @@ class CondVAE(nn.Module):
 
 
 # hyper parameters
-latent_space_dim = 5
+latent_space_dim = 4
 hidden_layer_dim = [250, 120, 60]
 lr = 1e-4
 epochs = 20
 
 
-
 def plot_training(vae, lr, epochs, conditioned=True):
-
     l, v = vae.train(epochs, lr)
     plt.plot(np.arange(len(l)), l, label='train')
     plt.plot(np.arange(len(v)), v, label='val')
     plt.title("VAE")
     plt.legend()
     plt.show()
-    n= 50
+    n = 50
     if conditioned:
         plt.plot(np.arange(48), vae(validation_cond[n].unsqueeze(0)).detach().squeeze(0).numpy())
         plt.plot(np.arange(48), validation_set[n].unsqueeze(0).detach().squeeze(0).numpy())
@@ -209,6 +225,7 @@ def plot_training(vae, lr, epochs, conditioned=True):
         plt.title("Classic VAE")
 
     plt.show()
+
 
 #vae = CondVAE(latent_space_dim, hidden_layer_dim)
 #plot_training(vae, lr, epochs, True)
