@@ -1,8 +1,5 @@
-import os
-import numpy as np, pandas as pd
 import tensorflow.keras as tfk
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import New_load as NL
 
 path = "data/"
@@ -60,3 +57,5 @@ vae.compile(loss="mean_squared_error",
 vae.fit(x=x_train, y=x_train, epochs=500, validation_split=0.1, verbose=0)
 
 x_encoded, _ = encoder(x_train)
+
+
