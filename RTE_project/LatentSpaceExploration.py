@@ -17,9 +17,9 @@ train_cond_dataloader, val_cond_dataloader, test_cond_dataloader, training_cond,
 
 # hyper parameters
 latent_space_dim = 4
-hidden_layer_dim = [250, 120, 60]
-lr = 1e-4
-epochs = 20
+hidden_layer_dim = [30, 20, 10]
+lr = 5*1e-5
+epochs = 100
 
 vae_cond = VAE_model.CondVAE(latent_space_dim, hidden_layer_dim)
 vae = VAE_model.VAE(latent_space_dim, hidden_layer_dim)
@@ -42,8 +42,8 @@ def regression_temp(trained_model, training_cond):
     return original_score, latent_score
 
 
-# print(regression_temp(vae_cond, training_cond))
-# print(regression_temp(vae, training_cond))
+print(regression_temp(vae_cond, training_cond))
+print(regression_temp(vae, training_cond))
 
 def classifier_day(trained_model, training_cond):
     X = trained_model.latent(training_cond[:, :48]).detach().numpy()
@@ -59,23 +59,27 @@ def classifier_day(trained_model, training_cond):
     return original_score, latent_score
 
 
-# print(classifier_day(vae_cond, training_cond))
-# print(classifier_day(vae, training_cond))
+print(classifier_day(vae_cond, training_cond))
+print(classifier_day(vae, training_cond))
 
 def scatter_plot_latent_space(trained_model, training_cond, dx=0, dy=1):
     latent_space = trained_model.latent(training_cond[:, :48]).detach().numpy()
     plt.scatter(latent_space[:, dx], latent_space[:, dy], c=training_cond[:, 49], cmap='viridis')
-    plt.title(f'Scatterplot of dimension {dy} with respect to dimension {dx}')
+    plt.title(f'Scatterplot of dimension {dy} with respect to dimension {dx} of {trained_model.__class__.__name__}')
     plt.colorbar(label='Day of the week')
     plt.show()
 
     plt.scatter(latent_space[:, dx], latent_space[:, dy], c=training_cond[:, 48], cmap='gist_heat')
-    plt.title(f'Scatterplot of dimension {dy} with respect to dimension {dx}')
+    plt.title(f'Scatterplot of dimension {dy} with respect to dimension {dx} of {trained_model.__class__.__name__}')
     plt.colorbar(label='Temperature')
     plt.show()
 
-
-# scatter_plot_latent_space(vae_cond, training_cond, 0, 1)
+scatter_plot_latent_space(vae, training_cond, 0, 1)
+scatter_plot_latent_space(vae_cond, training_cond, 0, 1)
+scatter_plot_latent_space(vae, training_cond, 1, 2)
+scatter_plot_latent_space(vae_cond, training_cond, 1, 2)
+scatter_plot_latent_space(vae, training_cond, 2, 3)
+scatter_plot_latent_space(vae_cond, training_cond, 2, 3)
 
 def plot_pca(trained_model, training_cond):
     latent_space = trained_model.latent(training_cond[:, :48]).detach().numpy()
@@ -86,4 +90,4 @@ def plot_pca(trained_model, training_cond):
     plt.colorbar(label='Day of the week')
     plt.show()
 
-# plot_pca(vae_cond, training_cond)
+plot_pca(vae_cond, training_cond)

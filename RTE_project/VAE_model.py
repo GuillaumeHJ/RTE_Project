@@ -21,11 +21,11 @@ class VariationalEncoder(nn.Module):
     def __init__(self, latent_space_dim, hidden_layer_dim):
         super().__init__()
 
-        self.fc = [nn.Linear(48, hidden_layer_dim[0])]
+        self.fc = nn.ModuleList([nn.Linear(48, hidden_layer_dim[0])])
         for i in range(len(hidden_layer_dim) - 1):
             self.fc.append(nn.Linear(hidden_layer_dim[i], hidden_layer_dim[i + 1]))
-        # for linear in self.fc:
-        #   nn.init.kaiming_normal_(linear.weight)
+        for linear in self.fc:
+            nn.init.kaiming_normal_(linear.weight)
         self.var = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
         self.mean = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
         self.normal = torch.distributions.Normal(0, 1)
@@ -38,8 +38,7 @@ class VariationalEncoder(nn.Module):
         log_var = self.var(x)
         mu = self.mean(x)
         encoded = mu + torch.exp(log_var / 2) * self.normal.sample(mu.shape)
-        # self.kl = torch.sum(s**2 + m**2 - torch.log(1e-8 + s) - 1/2) ##KL divergence between the standard gaussian distribution and the generated distribution
-        self.kl = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
+        self.kl = torch.sum(-1/2 - log_var + mu ** 2 + log_var.exp())
         return encoded
 
 
@@ -47,7 +46,7 @@ class Decoder(nn.Module):
     def __init__(self, latent_space_dim, hidden_layer_dim, cond=False):
         super().__init__()
         cond = int(cond)
-        self.fc = [nn.Linear(latent_space_dim + cond, hidden_layer_dim[-1])]
+        self.fc = nn.ModuleList([nn.Linear(latent_space_dim + cond, hidden_layer_dim[-1])])
         for i in range(len(hidden_layer_dim) - 1, 0, -1):
             self.fc.append(nn.Linear(hidden_layer_dim[i], hidden_layer_dim[i - 1]))
 
@@ -84,11 +83,11 @@ class VAE(nn.Module):
         with torch.no_grad():
             for x in train_dataloader:
                 decoded_x = self.forward(x)
-                train_loss += ((x - decoded_x) ** 2).sum() / (x.shape[0]) + self.encoder.kl
+                train_loss += ((x - decoded_x) ** 2).sum() / + self.encoder.kl
                 train_num_sample += len(x)
             for x in val_dataloader:
                 decoded_x = self.forward(x)
-                val_loss += ((x - decoded_x) ** 2).sum() / (x.shape[0]) + self.encoder.kl
+                val_loss += ((x - decoded_x) ** 2).sum() + self.encoder.kl
                 val_num_sample += len(x)
         return train_loss / train_num_sample, val_loss / val_num_sample
 
@@ -100,7 +99,7 @@ class VAE(nn.Module):
             for t, x in enumerate(train_dataloader):
                 opt.zero_grad
                 decoded_x = self.forward(x)
-                loss = ((x - decoded_x) ** 2).sum() / (x.shape[0]) + self.encoder.kl
+                loss = ((x - decoded_x) ** 2).sum() + self.encoder.kl
                 loss.backward()
                 opt.step()
             tl, vl = self.evaluate()
@@ -139,7 +138,7 @@ class CondVAE(nn.Module):
     def __init__(self, latent_space_dim, hidden_layer_dim):
         super().__init__()
         self.encoder = VariationalEncoder(latent_space_dim, hidden_layer_dim)
-        self.decoder = CondDecoder(latent_space_dim, hidden_layer_dim)
+        self.decoder = Decoder(latent_space_dim, hidden_layer_dim,True)
 
     def forward(self, x):
         encoded = self.encoder(x[:, :48])
@@ -157,11 +156,11 @@ class CondVAE(nn.Module):
         with torch.no_grad():
             for x in train_cond_dataloader:
                 decoded_x = self.forward(x)
-                train_loss += ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
+                train_loss += ((x[:, :48] - decoded_x) ** 2).sum() + self.encoder.kl
                 train_num_sample += len(x)
             for x in val_cond_dataloader:
                 decoded_x = self.forward(x)
-                val_loss += ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
+                val_loss += ((x[:, :48] - decoded_x) ** 2).sum() + self.encoder.kl
                 val_num_sample += len(x)
         return train_loss / train_num_sample, val_loss / val_num_sample
 
@@ -173,7 +172,7 @@ class CondVAE(nn.Module):
             for t, x in enumerate(train_cond_dataloader):
                 opt.zero_grad
                 decoded_x = self.forward(x)
-                loss = ((x[:, :48] - decoded_x) ** 2).sum() / (x.shape[0] - 1) + self.encoder.kl
+                loss = ((x[:, :48] - decoded_x) ** 2).sum() + self.encoder.kl
                 loss.backward()
                 opt.step()
             tl, vl = self.evaluate()
@@ -182,11 +181,12 @@ class CondVAE(nn.Module):
         return TL, VL
 
 
+
 # hyper parameters
-latent_space_dim = 5
-hidden_layer_dim = [250, 120, 60]
+latent_space_dim = 4
+hidden_layer_dim = [30, 20, 10]
 lr = 1e-4
-epochs = 20
+epochs = 100
 
 
 
@@ -210,5 +210,5 @@ def plot_training(vae, lr, epochs, conditioned=True):
 
     plt.show()
 
-#vae = CondVAE(latent_space_dim, hidden_layer_dim)
-#plot_training(vae, lr, epochs, True)
+"""vae = CondVAE(latent_space_dim, hidden_layer_dim)
+plot_training(vae, lr, epochs, True)"""
