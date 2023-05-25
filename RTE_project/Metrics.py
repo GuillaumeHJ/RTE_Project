@@ -3,7 +3,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_validate
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
+
 import VAE_model
 import VAE_model as model
 import Load_data
@@ -46,56 +46,13 @@ def plot_year_err(vae, conditioned=False):
 latent_space_dim = 5
 hidden_layer_dim = [250, 120, 60]
 lr = 1e-4
-epochs = 5
+epochs = 20
 
 vae = VAE_model.CondVAE(latent_space_dim, hidden_layer_dim)
 vae.train(epochs, lr)
 
-#histogram_error(vae,True)
-#plot_year_err(vae,True)
-
-
-def bar_error_byDay(vae):
-    names= ["Monday","Thuesday","Wenesday","Thursday","Friday","Saturday","Sunday"]
-    days = np.zeros(7)
-    num_days = np.zeros(7)
-    for x in validation_cond:
-        decoded_x = vae(x[None,:])
-        err = (((x[:48] - decoded_x[0]) ** 2).sum() / (x.shape[0] - 1)).detach().numpy()
-        days[int(x[49])]+=err
-        num_days[int(x[49])]+=1
-    days_mean = days/num_days
-    plt.bar(names,days_mean)
-    plt.title('mean error by day')
-    plt.show()
-
-def bar_error_byTemp(vae,conditioned=False):
-    numb_classes = 10
-    abs = np.arange(10)
-    temps = np.zeros(numb_classes)
-    max, min = torch.max(validation_cond[:, 48]), torch.min(validation_cond[:, 48])
-    incr = (max - min).item()/numb_classes
-    numb_temps = np.zeros(numb_classes)
-    if conditioned:
-        for x in validation_cond:
-            decoded_x = vae(x[None, :])
-            err = (((x[:48] - decoded_x[0]) ** 2).sum() / (x.shape[0] - 1)).detach().numpy()
-            temps[int((x[48]-min-1e-5)//incr)] += err
-            numb_temps[int((x[48]-min-1e-5)//incr)] += 1
-    else:
-        for x in validation_set:
-            decoded_x = vae(x[None, :])
-            err = (((x - decoded_x[0]) ** 2).mean()).detach().numpy()
-            temps[int((x[48]-min-1e-5)//incr)] += err
-            numb_temps[int((x[48]-min-1e-5)//incr)] += 1
-    temps_mean = temps/numb_temps
-    plt.bar(abs, temps_mean)
-    plt.title('error in function of the temperature')
-    plt.show()
-
-bar_error_byDay(vae)
-bar_error_byTemp(vae)
-
+err= histogram_error(vae,True)
+plot_year_err(vae,True)
 
 def make_chronics(df, toshape_columns, pivot_indexcol, pivot_columncol=None):
     """[summary]
