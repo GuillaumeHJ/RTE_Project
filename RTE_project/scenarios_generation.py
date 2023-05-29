@@ -11,18 +11,31 @@ def generate_scenarios(decoder, test_set, M=100):
         generated_scenario = decoder(np.concatenate((sample, test_set[:, 48:50]), axis=1))
         scenarios.append(generated_scenario)
 
-    scenarios = np.array(scenarios)
-    mean = np.mean(scenarios, axis=0)
-    biases = np.mean(scenarios - mean[None, :, :], axis=2)
-    print(biases.shape)
+    scenarios = np.swapaxes(np.array(scenarios), 0, 1)
+    mean = np.mean(scenarios, axis=1)
 
-    scenarios_ordered_by_bias = np.sort()
+    # Computing biases for each scenario
+    biases = scenarios - mean[:, np.newaxis, :]
 
-    return scenarios_ordered_by_bias[M // 4], mean, scenarios_ordered_by_bias[3 * M // 4], scenarios_ordered_by_bias
+    # Sorting scenarios according to their biases
+    sorted_indices = np.argsort(biases, axis=1)
+    sorted_scenarios = np.take_along_axis(scenarios, sorted_indices, axis=1)
+
+    #print(f"scenarios : {scenarios.shape}")
+    #print(f"mean : {mean.shape}")
+    #print(f"biases : {biases.shape}")
+    #print(f"indices : {sorted_indices.shape}")
+    #print(f"sorted scenarios : {sorted_scenarios.shape}")
+
+    return sorted_scenarios[:, M // 4, :], mean, sorted_scenarios[:, 3 * M // 4, :], sorted_scenarios
+
 
 q3, mean, q1, scenarios = generate_scenarios(ClementCVAE.decoder, ClementCVAE.x_val)
 
-day = 100
+#print(q3.shape)
+#print(scenarios.shape)
+
+day = 150
 plt.plot(np.arange(48), q1[day, :48], color='green', linestyle='dashed')
 plt.plot(np.arange(48), mean[day, :48], color='red', linestyle='dashed')
 plt.plot(np.arange(48), q3[day, :48], color='blue', linestyle='dashed')
