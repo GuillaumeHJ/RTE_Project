@@ -3,7 +3,7 @@ import tensorflow as tf
 import New_load as NL
 
 path = "data/"
-x_train, x_val = NL.load(path)
+x_train, x_val, sc = NL.load(path)
 
 encoder_dims = [48, 48, 24, 12]
 decoder_dims = [12, 24]
@@ -12,11 +12,10 @@ latent_dims = 3
 # create VAE
 
 # encoder
-x_inputs = tfk.Input(shape=(48, 1,))
+x_inputs = tfk.Input(shape=(48,))
 x = x_inputs
 for e_dim in encoder_dims:
-    x = tfk.layers.Conv1D(filters=e_dim, kernel_size=3, strides=1, padding="same", activation="relu",
-                          input_shape=[None, x_inputs])(x)
+    x = tfk.layers.Dense(e_dim, activation="relu")(x)
 
 mu = tfk.layers.Dense(latent_dims, activation="linear")(x)
 log_sigma = tfk.layers.Dense(latent_dims, activation="linear")(x)
@@ -25,11 +24,10 @@ encoder = tfk.Model(x_inputs, [mu, log_sigma], name="encoder")
 
 # decoder
 
-z_inputs = tfk.Input(shape=(latent_dims, 1,))
+z_inputs = tfk.Input(shape=(latent_dims,))
 z = z_inputs
 for d_dim in decoder_dims:
-    z = tfk.layers.Conv1D(filters=d_dim, kernel_size=3, strides=1, padding="same", activation="relu",
-                          input_shape=[None, z_inputs, 3])(z)
+    z = tfk.layers.Dense(d_dim, activation="relu")(z)
 x_hat = tfk.layers.Dense(48, activation="linear")(z)
 
 decoder = tfk.Model(z_inputs, x_hat, name="decoder")
