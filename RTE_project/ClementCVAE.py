@@ -3,7 +3,7 @@ import tensorflow as tf
 import New_load as NL
 
 path = "data/"
-x_train, x_val = NL.load(path)
+x_train, x_val, sc = NL.load(path)
 
 encoder_dims = [48, 48, 24, 12]
 decoder_dims = [12, 24]
