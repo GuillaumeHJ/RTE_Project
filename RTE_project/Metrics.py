@@ -1,29 +1,20 @@
 from sklearn.preprocessing import StandardScaler
-
 from sklearn.model_selection import cross_validate
 import numpy as np
 import matplotlib.pyplot as plt
-
-import VAE_model
-import VAE_model as model
-import Load_data
 import pandas as pd
 
-path = "data/"
-
-train_dataloader, val_dataloader, test_dataloader, training_set, validation_set, test_set = Load_data.load(path, False)
-train_cond_dataloader, val_cond_dataloader, test_cond_dataloader, training_cond, validation_cond, test_cond = Load_data.load(
-    path, True)
+import ClementCVAE as CVAE
 
 
 def histogram_error(vae, conditioned=False):
     err = []
     if conditioned:
-        for x in validation_cond:
+        for x in CVAE.x_val:
             decoded_x = vae(x[None, :])
             err.append((((x[:48] - decoded_x[0]) ** 2).sum() / (x.shape[0] - 1)).detach().numpy())
     else:
-        for x in validation_set:
+        for x in CVAE.x_val[:,48]:
             decoded_x = vae(x[None, :])
             err.append(((x - decoded_x) ** 2).mean().detach().numpy())
     plt.hist(err)
@@ -34,160 +25,20 @@ def histogram_error(vae, conditioned=False):
 def plot_year_err(vae, conditioned=False):
     err = []
     if conditioned:
-        for x in validation_cond:
+        for x in CVAE.x_val:
             decoded_x = vae(x[None, :])
             err.append((((x[:48] - decoded_x[0]) ** 2).sum() / (x.shape[0] - 1)).detach().numpy())
     else:
-        for x in validation_set:
+        for x in CVAE.x_val[:,48]:
             decoded_x = vae(x[None, :])
             err.append(((x - decoded_x) ** 2).mean().detach().numpy())
     abs = np.arange(365)
     plt.plot(abs, err)
     plt.show()
 
-
-# hyper parameters
-latent_space_dim = 5
-hidden_layer_dim = [250, 120, 60]
-lr = 1e-4
-epochs = 20
-
-vae = VAE_model.CondVAE(latent_space_dim, hidden_layer_dim)
-vae.train(epochs, lr)
-
+vae = CVAE.decoder
 err = histogram_error(vae, True)
 plot_year_err(vae, True)
-
-
-def make_chronics(df, toshape_columns, pivot_indexcol, pivot_columncol=None):
-    """[summary]
-    Args:
-        df ([type]): [description]
-        toshape_columns ([type]): [description]
-        pivot_indexcol ([type]): [description]
-        pivot_columncol ([type], optional): [description]. Defaults to None.
-    Returns:
-        [type]: [description]
-    """
-
-    assert pivot_indexcol in list(df.columns)
-    if pivot_columncol is not None:
-        assert pivot_columncol in list(df.columns)
-
-    list_df = []
-    print('ok1')
-    for col in toshape_columns:
-        df_pivot = df[[col, pivot_indexcol, pivot_columncol]].pivot(
-            values=col, index=pivot_indexcol, columns=pivot_columncol).copy()
-        print('ok2')
-        if df_pivot.isna().sum().sum() != 0:
-            df_pivot = df_pivot.interpolate(method="linear", axis=0)
-        print('ok3')
-        list_df.append(df_pivot.copy())
-
-    return tuple(list_df)
-
-
-def make_df_calendar(df_datetime):
-    """[summary]
-    Args:
-        df_datetime ([type]): [description]
-    Returns:
-        [type]: [description]
-    """
-
-    ds = df_datetime.columns[0]
-    df_datetime[ds] = pd.to_datetime(df_datetime[ds])
-
-    df_datetime['month'] = df_datetime[ds].dt.month
-    df_datetime['weekday'] = df_datetime[ds].dt.weekday
-    df_datetime['is_weekend'] = (df_datetime.weekday >= 5).apply(lambda x: int(x))
-    df_datetime['year'] = df_datetime[ds].dt.year
-
-    return df_datetime
-
-
-def apply_scaler(df, column, df_chronic, reference_window):
-    """[summary]
-    Args:
-        df ([type]): [description]
-        column ([type]): [description]
-        reference_window ([type]): [description]
-    Returns:
-        [type]: [description]
-    """
-
-    if reference_window is None:
-        reference_window = np.array([True] * df.shape[0])
-
-    scaler = StandardScaler().fit(df[[column]].loc[reference_window].values)
-
-    df_chronic = df_chronic.apply(lambda x: scaler.transform(x.reshape(-1, 1)).ravel(), raw=True, axis=1)
-
-    return df_chronic, scaler
-
-
-# Construction of factorMatrix and factorDesc
-
-# importation des données calendaires
-
-"""
-df_data.utc_datetime = pd.to_datetime(df_data.utc_datetime, utc=True)
-
-ds = pd.DataFrame({"days" : df_data.utc_datetime.dt.date, "minute":df_data.utc_datetime.dt.minute+60*df_data.utc_datetime.dt.hour})
-
-df_conso, df_temp, df_prevision = make_chronics(df=pd.concat([df_data, ds], axis=1),
-                                               toshape_columns=["Consommation", "prevision_temp", "prevision_j-1"],
-                                               pivot_indexcol="days", pivot_columncol="minute")
-
-
-
-
-
-
-df_conso, conso_scaler = apply_scaler(df_data, column="Consommation", df_chronic=df_conso,
-                                      reference_window=df_data.utc_datetime.dt.year <=2018)
-
-
-
-df_calendar = make_df_calendar(pd.DataFrame({"ds" : pd.to_datetime(np.asarray(df_conso.index))}))
-
-df_holidays = pd.concat([df_data[["is_holidays"]],pd.DataFrame({"ds" : pd.to_datetime(ds.days.values)})], axis=1).drop_duplicates(
-                                               subset="ds").reset_index(drop= True)
-
-df_calendar = df_calendar.merge(df_holidays, on="ds", how="left").rename(columns={"is_holidays":"is_holiday_day"})
-
-
-
-#explicit the potential bridge days taken as extended holidays
-day_hol = df_calendar[['weekday', 'is_holiday_day']].copy().values
-bridge_index=[]
-for i in range(day_hol.shape[0]):
-    if day_hol[i,1]==1:
-        if day_hol[i,0]==1:
-            bridge_index.append(i-1)
-        elif day_hol[i,0]==3:
-            bridge_index.append(i+1)
-
-bridges = np.zeros(day_hol.shape[0])
-bridges[np.asarray(bridge_index)] = 1
-
-df_calendar['potential_bridge_holiday'] = bridges
-#calendar_info['potential_bridge_holiday'].describe()
-
-calendar_factors = ["weekday", "is_weekend", "month", "is_holiday_day"]
-factors = df_calendar[calendar_factors].copy()
-factorDesc = {ff : 'category' for ff in calendar_factors}
-
-temperatureMean= df_temp.mean(axis=1).values.reshape(-1,1)
-factorMatrix = np.c_[factors.values,temperatureMean]
-factorDesc['temperature']='regressor'
-
-print('factor matrix :' , factorMatrix, 'factor matrix.shape :' , factorMatrix.shape )
-print('desc matrix :' , factorDesc)
-
-"""
-
 
 def disentanglement_quantification(x_reduced, factorMatrix, factorDesc, algorithm='RandomForest', cv=3,
                                    normalize_information=False):
@@ -430,6 +281,131 @@ def display_evaluation_latent_code(final_evaluation, z_dim, factorDesc):
 
     plt.show()
 
+'''
+def make_chronics(df, toshape_columns, pivot_indexcol, pivot_columncol=None):
+    """[summary]
+    Args:
+        df ([type]): [description]
+        toshape_columns ([type]): [description]
+        pivot_indexcol ([type]): [description]
+        pivot_columncol ([type], optional): [description]. Defaults to None.
+    Returns:
+        [type]: [description]
+    """
+
+    assert pivot_indexcol in list(df.columns)
+    if pivot_columncol is not None:
+        assert pivot_columncol in list(df.columns)
+
+    list_df = []
+    for col in toshape_columns:
+        df_pivot = df[[col, pivot_indexcol, pivot_columncol]].pivot(
+            values=col, index=pivot_indexcol, columns=pivot_columncol).copy()
+        if df_pivot.isna().sum().sum() != 0:
+            df_pivot = df_pivot.interpolate(method="linear", axis=0)
+        list_df.append(df_pivot.copy())
+
+    return tuple(list_df)
+
+
+def make_df_calendar(df_datetime):
+    """[summary]
+    Args:
+        df_datetime ([type]): [description]
+    Returns:
+        [type]: [description]
+    """
+
+    ds = df_datetime.columns[0]
+    df_datetime[ds] = pd.to_datetime(df_datetime[ds])
+
+    df_datetime['month'] = df_datetime[ds].dt.month
+    df_datetime['weekday'] = df_datetime[ds].dt.weekday
+    df_datetime['is_weekend'] = (df_datetime.weekday >= 5).apply(lambda x: int(x))
+    df_datetime['year'] = df_datetime[ds].dt.year
+
+    return df_datetime
+
+
+def apply_scaler(df, column, df_chronic, reference_window):
+    """[summary]
+    Args:
+        df ([type]): [description]
+        column ([type]): [description]
+        reference_window ([type]): [description]
+    Returns:
+        [type]: [description]
+    """
+
+    if reference_window is None:
+        reference_window = np.array([True] * df.shape[0])
+
+    scaler = StandardScaler().fit(df[[column]].loc[reference_window].values)
+
+    df_chronic = df_chronic.apply(lambda x: scaler.transform(x.reshape(-1, 1)).ravel(), raw=True, axis=1)
+
+    return df_chronic, scaler
+
+
+# Construction of factorMatrix and factorDesc
+
+# importation des données calendaires
+
+
+df_data.utc_datetime = pd.to_datetime(df_data.utc_datetime, utc=True)
+
+ds = pd.DataFrame({"days" : df_data.utc_datetime.dt.date, "minute":df_data.utc_datetime.dt.minute+60*df_data.utc_datetime.dt.hour})
+
+df_conso, df_temp, df_prevision = make_chronics(df=pd.concat([df_data, ds], axis=1),
+                                               toshape_columns=["Consommation", "prevision_temp", "prevision_j-1"],
+                                               pivot_indexcol="days", pivot_columncol="minute")
+
+
+
+
+
+
+df_conso, conso_scaler = apply_scaler(df_data, column="Consommation", df_chronic=df_conso,
+                                      reference_window=df_data.utc_datetime.dt.year <=2018)
+
+
+
+df_calendar = make_df_calendar(pd.DataFrame({"ds" : pd.to_datetime(np.asarray(df_conso.index))}))
+
+df_holidays = pd.concat([df_data[["is_holidays"]],pd.DataFrame({"ds" : pd.to_datetime(ds.days.values)})], axis=1).drop_duplicates(
+                                               subset="ds").reset_index(drop= True)
+
+df_calendar = df_calendar.merge(df_holidays, on="ds", how="left").rename(columns={"is_holidays":"is_holiday_day"})
+
+
+
+#explicit the potential bridge days taken as extended holidays
+day_hol = df_calendar[['weekday', 'is_holiday_day']].copy().values
+bridge_index=[]
+for i in range(day_hol.shape[0]):
+    if day_hol[i,1]==1:
+        if day_hol[i,0]==1:
+            bridge_index.append(i-1)
+        elif day_hol[i,0]==3:
+            bridge_index.append(i+1)
+
+bridges = np.zeros(day_hol.shape[0])
+bridges[np.asarray(bridge_index)] = 1
+
+df_calendar['potential_bridge_holiday'] = bridges
+#calendar_info['potential_bridge_holiday'].describe()
+
+calendar_factors = ["weekday", "is_weekend", "month", "is_holiday_day"]
+factors = df_calendar[calendar_factors].copy()
+factorDesc = {ff : 'category' for ff in calendar_factors}
+
+temperatureMean= df_temp.mean(axis=1).values.reshape(-1,1)
+factorMatrix = np.c_[factors.values,temperatureMean]
+factorDesc['temperature']='regressor'
+
+print('factor matrix :' , factorMatrix, 'factor matrix.shape :' , factorMatrix.shape )
+print('desc matrix :' , factorDesc)
+
 
 """
 #Metrics
@@ -438,4 +414,5 @@ final_evaluation, importance_matrix = evaluate_latent_code(x_reduced, factorMatr
 
 display_evaluation_latent_code(final_evaluation, latent_space_dim, factorDesc)
 
-"""
+
+'''
