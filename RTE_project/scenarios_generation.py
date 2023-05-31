@@ -12,13 +12,21 @@ plt.plot(np.arange(48), mean[day, :48], color='red', linestyle='dashed')
 plt.plot(np.arange(48), q3[day, :48], color='blue', linestyle='dashed')
 plt.show()
 
-
-value_energy_score = scoring.energy_score(scoring.ClementCVAE.decoder, scoring.ClementCVAE.x_val, scenarios[:353, :, :])
-value_variogram_score = scoring.variogram_score(scoring.ClementCVAE.decoder, scoring.ClementCVAE.x_val,
-                                                scenarios[:353, :, :])
+value_energy_score = scoring.energy_score(scoring.ClementCVAE.x_val[:353,:], scenarios[:353,:,:])
+value_variogram_score = scoring.variogram_score(scoring.ClementCVAE.x_val[:353,:], scenarios[:353,:,:])
 
 print('Energy score', value_energy_score)
 print('Variogram score', value_variogram_score)
 
-mean_scenario = np.mean(scoring.ClementCVAE.x_train[:, :48], axis=0)
+print('Comparaison avec un scénario moyenné sur le training set')
+
+n,p = scoring.ClementCVAE.x_val[:,:48].shape
+avg_scenario = np.mean(scoring.ClementCVAE.x_train[:,:48],axis=0)
+avg_scenario_broadcasted = np.broadcast_to(avg_scenario, (n, 100, p))
+
+value_energy_score_avg = scoring.energy_score(scoring.ClementCVAE.x_val, avg_scenario_broadcasted)
+value_variogram_score_avg = scoring.variogram_score(scoring.ClementCVAE.x_val, avg_scenario_broadcasted)
+
+print('Energy score avg', value_energy_score_avg)
+print('Variogram score avg', value_variogram_score_avg)
 

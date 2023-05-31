@@ -34,13 +34,13 @@ def generate_scenarios(decoder, test_set, M=100):
     return sorted_scenarios[:, M // 4, :], mean, sorted_scenarios[:, 3 * M // 4, :], sorted_scenarios
 
 
-def energy_score(decoder, test_set, scenarios, M=100):
+def energy_score(test_set, scenarios, M=100):
     # scenario.shape = (365,M,48)
     M = scenarios.shape[1]  # number of scenarios
     # print('M', M)
 
-    test_set_np = test_set[:353, :48]  # (365,48)
-    n, p = test_set[:353, :48].shape
+    test_set_np = test_set[:, :48]  # (365,48)
+    n, p = test_set[:, :48].shape
     # print('n,p', n, p)
     broadcast_test = np.expand_dims(test_set_np, axis=1).repeat(M, axis=1)  # (365,M,48)
     # print('broadcast_test', broadcast_test)
@@ -63,10 +63,10 @@ def energy_score(decoder, test_set, scenarios, M=100):
     return ES
 
 
-def variogram_score(decoder, test_set, scenarios, weights=np.ones((48, 48)), gamma=0.5):
+def variogram_score(test_set, scenarios, weights=np.ones((48, 48)), gamma=0.5):
     M = scenarios.shape[1]  # number of scenarios
-    test_set_np = test_set[:353, :48]  # (365,48)
-    n, p = test_set[:353, :48].shape
+    test_set_np = test_set[:, :48]  # (365,48)
+    n, p = test_set[:, :48].shape
     VS_d = np.zeros(n)
 
     for l in range(p):
@@ -74,5 +74,4 @@ def variogram_score(decoder, test_set, scenarios, weights=np.ones((48, 48)), gam
             esperence_lm = 1 / M * np.sum(np.abs(scenarios[:, :, l] - scenarios[:, :, m]) ** gamma, axis=1)
             VS_d += weights[l, m] * (np.abs(test_set_np[:, l] - test_set_np[:, m]) ** gamma - esperence_lm) ** 2
     VS = 1 / n * np.sum(VS_d)
-
     return VS
