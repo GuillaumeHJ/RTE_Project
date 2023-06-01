@@ -2,14 +2,13 @@ import os
 import numpy as np, pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-
 def load(path):
     # Loading and converting data to dataframes
     os.listdir(path)
     dataset_csv = os.path.join(path, "data_conso_2012-2021.parquet.brotli")
     df_data = pd.read_parquet(dataset_csv)
     df_data.utc_datetime = pd.to_datetime(df_data.utc_datetime, utc=True)
-
+    df_data = df_data.replace(np.nan, 0)
     ds = pd.DataFrame({"days": df_data.utc_datetime.dt.date,
                        "minute": df_data.utc_datetime.dt.minute + 60 * df_data.utc_datetime.dt.hour})
     df_data["weekday"] = df_data['utc_datetime'].dt.weekday
@@ -30,7 +29,7 @@ def load(path):
     df_cond = pd.concat([df_cond, df_weekday['weekday']], axis=1)
 
 
-    x_train = df_cond.loc[pd.to_datetime(df_conso.index).year <= 2017].values
-    x_val = df_cond.loc[pd.to_datetime(df_conso.index).year == 2018].values
+    x_train = df_cond.loc[pd.to_datetime(df_conso.index).year <= 2017].values.astype(np.float32)
+    x_val = df_cond.loc[pd.to_datetime(df_conso.index).year == 2018].values.astype(np.float32)
 
-    return x_train, x_val
+    return x_train, x_val, sc
