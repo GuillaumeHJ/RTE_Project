@@ -34,7 +34,7 @@ def generate_scenarios(decoder, test_set, M=100):
     return sorted_scenarios[:, M // 4, :], mean, sorted_scenarios[:, 3 * M // 4, :], sorted_scenarios
 
 
-def energy_score(test_set, scenarios, M=100):
+def energy_score(test_set, scenarios):
     # scenario.shape = (365,M,48)
     M = scenarios.shape[1]  # number of scenarios
     # print('M', M)
@@ -75,3 +75,21 @@ def variogram_score(test_set, scenarios, weights=np.ones((48, 48)), gamma=0.5):
             VS_d += weights[l, m] * (np.abs(test_set_np[:, l] - test_set_np[:, m]) ** gamma - esperence_lm) ** 2
     VS = 1 / n * np.sum(VS_d)
     return VS
+
+def quantile_score(test_set, scenarios):
+    M = scenarios.shape[1]  # number of scenarios
+    test_set_np = test_set[:, :48]  # (365,48)
+    n, p = test_set[:, :48].shape
+    quantiles = np.transpose(np.percentile(scenarios, range(1, 100), axis =1), (1, 0, 2))
+    print('quantiles.shape', quantiles.shape)
+
+    rho_q = np.zeros((n,99,p))
+    for q in range (1,100):
+        b = np.greater(scenarios[:,q,:] - test_set_np[:,:], np.zeros((n,p)))
+        rho_q[:,q-1,:] = (1-0.01 * q) * (scenarios[:,q-1,:] - test_set_np[:,:]) * b + 0.01 * q * (test_set_np[:,:] - scenarios[:,q,:]) * np.logical_not(b)
+        #(365,99,48)
+
+    QS_q = 1/(n*p) * np.sum(np.sum(rho_q,axis=2),axis = 0) #(99)
+    QS = 1/99 * np.sum(QS_q)
+
+    return QS
