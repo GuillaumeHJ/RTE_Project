@@ -12,8 +12,8 @@ def generate_scenarios(decoder, test_set, M=100):
         generated_scenario = decoder(np.concatenate((sample, test_set[:, 48:50]), axis=1))
 
         # Rescaling it
-        generated_scenario_descaled = ClementCVAE.sc.inverse_transform(generated_scenario)
-        scenarios.append(generated_scenario_descaled)
+        #generated_scenario_descaled = ClementCVAE.sc.inverse_transform(generated_scenario)
+        scenarios.append(generated_scenario)
 
     scenarios = np.swapaxes(np.array(scenarios), 0, 1)
     mean = np.mean(scenarios, axis=1)
