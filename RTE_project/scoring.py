@@ -85,8 +85,8 @@ def quantile_score(test_set, scenarios):
 
     rho_q = np.zeros((n,99,p))
     for q in range (1,100):
-        b = np.greater(scenarios[:,q,:] - test_set_np[:,:], np.zeros((n,p)))
-        rho_q[:,q-1,:] = (1-0.01 * q) * (scenarios[:,q-1,:] - test_set_np[:,:]) * b + 0.01 * q * (test_set_np[:,:] - scenarios[:,q,:]) * np.logical_not(b)
+        b = np.greater(quantiles[:,q-1,:] - test_set_np[:,:], np.zeros((n,p)))
+        rho_q[:,q-1,:] = (1-0.01 * q) * (quantiles[:,q-1,:] - test_set_np[:,:]) * b + 0.01 * q * (test_set_np[:,:] - quantiles[:,q-1,:]) * np.logical_not(b)
         #(365,99,48)
 
     QS_q = 1/(n*p) * np.sum(np.sum(rho_q,axis=2),axis = 0) #(99)
