@@ -15,7 +15,7 @@ train_cond_dataloader, val_cond_dataloader, test_cond_dataloader, training_cond,
 
 
 
-# **************************************Building a VAE***************************************
+# **************************************Building Variationnal Encoder and Decoder***************************************
 
 class VariationalEncoder(nn.Module):
     def __init__(self, latent_space_dim, hidden_layer_dim):
@@ -24,8 +24,10 @@ class VariationalEncoder(nn.Module):
         self.fc = nn.ModuleList([nn.Linear(48, hidden_layer_dim[0])])
         for i in range(len(hidden_layer_dim) - 1):
             self.fc.append(nn.Linear(hidden_layer_dim[i], hidden_layer_dim[i + 1]))
-        for linear in self.fc:
-            nn.init.kaiming_normal_(linear.weight)
+            self.fc.append(nn.ReLU())
+        for m in self.fc:
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight)
         self.var = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
         self.mean = nn.Linear(hidden_layer_dim[-1], latent_space_dim)
         self.normal = torch.distributions.Normal(0, 1)
@@ -34,7 +36,6 @@ class VariationalEncoder(nn.Module):
     def forward(self, x):
         for i in range(len(self.fc)):
             x = self.fc[i](x)
-            x = F.relu(x)
         log_var = self.var(x)
         mu = self.mean(x)
         encoded = mu + torch.exp(log_var / 2) * self.normal.sample(mu.shape)
@@ -46,27 +47,29 @@ class Decoder(nn.Module):
     def __init__(self, latent_space_dim, hidden_layer_dim, cond=False):
         super().__init__()
         cond = int(cond)
-        self.fc = nn.ModuleList([nn.Linear(latent_space_dim + cond, hidden_layer_dim[-1])])
-        for i in range(len(hidden_layer_dim) - 1, 0, -1):
-            self.fc.append(nn.Linear(hidden_layer_dim[i], hidden_layer_dim[i - 1]))
-
-        self.fc.append(nn.Linear(hidden_layer_dim[0], 48))
-        for linear in self.fc:
-            nn.init.kaiming_normal_(linear.weight)
+        self.fc = nn.ModuleList([nn.Linear(latent_space_dim + 2*cond, hidden_layer_dim[0])])
+        self.fc.append(nn.ReLU())
+        for i in range(len(hidden_layer_dim)-1):
+            self.fc.append(nn.Linear(hidden_layer_dim[i], hidden_layer_dim[i + 1]))
+            self.fc.append(nn.ReLU())
+        self.fc.append(nn.Linear(hidden_layer_dim[-1], 48))
+        for m in self.fc:
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight)
 
     def forward(self, x):
-        for i in range(len(self.fc) - 1):
+        for i in range(len(self.fc)):
             x = self.fc[i](x)
-            x = F.relu(x)
-        x = self.fc[-1](x)
         return x
+
+# **************************************Building Simple VAE***************************************
 
 
 class VAE(nn.Module):
-    def __init__(self, latent_space_dim, hidden_layer_dim):
+    def __init__(self, latent_space_dim, hidden_layer_encoder, hidden_layer_decoder):
         super().__init__()
-        self.encoder = VariationalEncoder(latent_space_dim, hidden_layer_dim)
-        self.decoder = Decoder(latent_space_dim, hidden_layer_dim, cond=False)
+        self.encoder = VariationalEncoder(latent_space_dim, hidden_layer_encoder)
+        self.decoder = Decoder(latent_space_dim, hidden_layer_decoder, cond=False)
 
     def forward(self, x):
         encoded = self.encoder(x)
@@ -108,41 +111,18 @@ class VAE(nn.Module):
         return TL, VL
 
 
-# *****************************Conditionned VAE modules***************************************
-
-
-class CondDecoder(nn.Module):
-    def __init__(self, latent_space_dim, hidden_layer_dim):
-        super().__init__()
-        self.fc1 = nn.Linear(latent_space_dim + 1, hidden_layer_dim[2])
-        nn.init.kaiming_normal_(self.fc1.weight)
-        self.fc2 = nn.Linear(hidden_layer_dim[2], hidden_layer_dim[1])
-        nn.init.kaiming_normal_(self.fc2.weight)
-        self.fc3 = nn.Linear(hidden_layer_dim[1], hidden_layer_dim[0])
-        nn.init.kaiming_normal_(self.fc3.weight)
-        self.decoder_output_layer = nn.Linear(hidden_layer_dim[0], 48)
-        nn.init.kaiming_normal_(self.decoder_output_layer.weight)
-
-    def forward(self, x):
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        x = self.fc3(x)
-        x = F.relu(x)
-        x = self.decoder_output_layer(x)
-        return x
+# *****************************Conditionned VAE ***************************************
 
 
 class CondVAE(nn.Module):
-    def __init__(self, latent_space_dim, hidden_layer_dim):
+    def __init__(self, latent_space_dim, hidden_layer_encoder, hidden_layer_decoder):
         super().__init__()
-        self.encoder = VariationalEncoder(latent_space_dim, hidden_layer_dim)
-        self.decoder = Decoder(latent_space_dim, hidden_layer_dim,True)
+        self.encoder = VariationalEncoder(latent_space_dim, hidden_layer_encoder)
+        self.decoder = Decoder(latent_space_dim, hidden_layer_decoder, True)
 
     def forward(self, x):
         encoded = self.encoder(x[:, :48])
-        cond_x = torch.cat((encoded, x[:, 48, None]), dim=1)
+        cond_x = torch.cat((encoded, x[:, 48, None],x[:, 49, None]), dim=1)
         return self.decoder(cond_x)
 
     def latent(self, x):
@@ -183,10 +163,11 @@ class CondVAE(nn.Module):
 
 
 # hyper parameters
-latent_space_dim = 4
-hidden_layer_dim = [30, 20, 10]
-lr = 1e-4
-epochs = 100
+latent_space_dim = 3
+hidden_layer_encoder = [30, 20, 10]
+hidden_layer_decoder = [10, 20, 30]
+lr = 5*1e-5
+epochs = 200
 
 
 
@@ -210,5 +191,5 @@ def plot_training(vae, lr, epochs, conditioned=True):
 
     plt.show()
 
-"""vae = CondVAE(latent_space_dim, hidden_layer_dim)
-plot_training(vae, lr, epochs, True)"""
+vae = CondVAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder)
+plot_training(vae, lr, epochs, True)
