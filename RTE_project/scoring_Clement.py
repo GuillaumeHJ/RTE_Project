@@ -87,7 +87,6 @@ def quantile_score(test_set, scenarios):
     test_set_np = test_set[:, :48]  # (365,48)
     n, p = test_set[:, :48].shape
     quantiles = np.transpose(np.percentile(scenarios, range(1, 100), axis=1), (1, 0, 2))
-    print('quantiles.shape', quantiles.shape)
 
     rho_q = np.zeros((n, 99, p))
     for q in range(1, 100):
