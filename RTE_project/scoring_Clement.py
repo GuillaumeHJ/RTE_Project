@@ -1,3 +1,5 @@
+import pandas as pd
+
 import ClementCVAE
 import numpy as np
 
@@ -12,8 +14,11 @@ def generate_scenarios(decoder, test_set, M=100):
         generated_scenario = decoder(np.concatenate((sample, test_set[:, 48:50]), axis=1))
 
         # Rescaling it
-        generated_scenario_descaled = ClementCVAE.sc.inverse_transform(generated_scenario)
-        scenarios.append(generated_scenario_descaled)
+        df_scenario = pd.DataFrame(generated_scenario[:, :48])
+        df_scenario_descaled = df_scenario.apply(
+            lambda x: ClementCVAE.sc.inverse_transform(x.reshape(-1, 1)).ravel(), axis=1, raw=True).values
+        scenario_descaled = np.array(list(df_scenario_descaled))
+        scenarios.append(np.concatenate((scenario_descaled, generated_scenario[:, 48:50]), axis=1))
 
     scenarios = np.swapaxes(np.array(scenarios), 0, 1)
     mean = np.mean(scenarios, axis=1)
@@ -76,20 +81,22 @@ def variogram_score(test_set, scenarios, weights=np.ones((48, 48)), gamma=0.5):
     VS = 1 / n * np.sum(VS_d)
     return VS
 
+
 def quantile_score(test_set, scenarios):
     M = scenarios.shape[1]  # number of scenarios
     test_set_np = test_set[:, :48]  # (365,48)
     n, p = test_set[:, :48].shape
-    quantiles = np.transpose(np.percentile(scenarios, range(1, 100), axis =1), (1, 0, 2))
+    quantiles = np.transpose(np.percentile(scenarios, range(1, 100), axis=1), (1, 0, 2))
     print('quantiles.shape', quantiles.shape)
 
-    rho_q = np.zeros((n,99,p))
-    for q in range (1,100):
-        b = np.greater(scenarios[:,q,:] - test_set_np[:,:], np.zeros((n,p)))
-        rho_q[:,q-1,:] = (1-0.01 * q) * (scenarios[:,q-1,:] - test_set_np[:,:]) * b + 0.01 * q * (test_set_np[:,:] - scenarios[:,q,:]) * np.logical_not(b)
-        #(365,99,48)
+    rho_q = np.zeros((n, 99, p))
+    for q in range(1, 100):
+        b = np.greater(scenarios[:, q, :] - test_set_np[:, :], np.zeros((n, p)))
+        rho_q[:, q - 1, :] = (1 - 0.01 * q) * (scenarios[:, q - 1, :] - test_set_np[:, :]) * b + 0.01 * q * (
+                    test_set_np[:, :] - scenarios[:, q, :]) * np.logical_not(b)
+        # (365,99,48)
 
-    QS_q = 1/(n*p) * np.sum(np.sum(rho_q,axis=2),axis = 0) #(99)
-    QS = 1/99 * np.sum(QS_q)
+    QS_q = 1 / (n * p) * np.sum(np.sum(rho_q, axis=2), axis=0)  # (99)
+    QS = 1 / 99 * np.sum(QS_q)
 
     return QS
