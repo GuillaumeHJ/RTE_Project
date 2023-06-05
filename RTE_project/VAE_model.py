@@ -139,18 +139,19 @@ def plot_training(vae, lr, epochs):
     conditioned = vae.conditioned
     plt.plot(np.arange(len(l)), l, label='train')
     plt.plot(np.arange(len(v)), v, label='val')
-    plt.title("VAE")
+    plt.title("Training Losses")
     plt.legend()
     plt.show()
     n = 200
     if conditioned:
-        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n]).unsqueeze(0)).detach(), sc).squeeze(0))
-        plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n])
+        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n]).unsqueeze(0)).detach(), sc).squeeze(0), label='Genrated Scenario')
+        plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n], label='Real Profile')
+        plt.legend()
         plt.title("Conditional VAE")
     else:
 
-        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n][:48]).unsqueeze(0)).detach(), sc).squeeze(0))
-        plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n])
+        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n][:48]).unsqueeze(0)).detach(), sc).squeeze(0), label='Genrated Scenario')
+        plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n], label='Real Profile')
         plt.title("Classic VAE")
 
     plt.show()
