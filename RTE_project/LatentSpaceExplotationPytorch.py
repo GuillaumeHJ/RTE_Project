@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 
 path = "data/"
 
-X_train, X_val, sc, weekdays, months = New_load.load(path)
+X_train, X_val, sc, weekdays, months, df_prev_val = New_load.load(path)
 
 train_dataloader = DataLoader(X_train, batch_size=64, shuffle=True)
 val_dataloader = DataLoader(X_val, batch_size=64, shuffle=True)

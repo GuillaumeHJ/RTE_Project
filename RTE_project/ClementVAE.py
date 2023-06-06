@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 path = "data/"
-x_train, x_val, sc, weekdays, months = NL.load(path)
+x_train, x_val, sc, weekdays, months, df_prev_val = NL.load(path)
 
 encoder_dims = [48, 48, 24, 12]
 decoder_dims = [12, 24]
