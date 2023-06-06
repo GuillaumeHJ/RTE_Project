@@ -12,7 +12,7 @@ latent_space_dim = 3
 if clement:
     import scoring_Clement as scoring
 
-    X_train, X_val, sc = scoring.ClementCVAE.x_train, scoring.ClementCVAE.x_val, scoring.ClementCVAE.sc
+    X_train, X_val, sc, weekdays, months = scoring.ClementCVAE.x_train, scoring.ClementCVAE.x_val, scoring.ClementCVAE.sc, scoring.ClementCVAE.weekdays, scoring.ClementCVAE.months
     q1, median, q3, scenarios = scoring.generate_scenarios(scoring.ClementCVAE.decoder, X_val, sc=sc, M=M)
     q1_vae, median_vae, q3_vae, scenarios_vae = scoring.generate_scenarios(scoring.ClementVAE.decoder, X_val, sc=sc, M=M, conditioned=False)
 
@@ -21,7 +21,7 @@ else:
 
     path = "data/"
 
-    X_train, X_val, sc = New_load.load(path)
+    X_train, X_val, sc, weekdays, months = New_load.load(path, days=True, month=True)
 
     train_dataloader = DataLoader(X_train, batch_size=64, shuffle=True)
     val_dataloader = DataLoader(X_val, batch_size=64, shuffle=True)
@@ -35,6 +35,7 @@ else:
     vae_cond = VAE_model.VAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder, conditioned=True)
     vae = VAE_model.VAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder, conditioned=False)
     l, v = vae_cond.train(epochs, lr, train_dataloader, val_dataloader)
+    l, v = vae.train(epochs, lr, train_dataloader, val_dataloader)
 
     q1, median, q3, scenarios = scoring.generate_scenarios(vae_cond.decoder, X_val, latent_space_dim=latent_space_dim,
                                                          sc=sc, M=M)

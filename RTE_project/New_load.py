@@ -3,7 +3,7 @@ import numpy as np, pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 
-def load(path):
+def load(path, days=False, month=False):
     # Loading and converting data to dataframes
     os.listdir(path)
     dataset_csv = os.path.join(path, "data_conso_2012-2021.parquet.brotli")
@@ -31,12 +31,39 @@ def load(path):
 
     x_train = df_cond_scaled.loc[pd.to_datetime(df_conso.index).year <= 2017].values.astype(np.float32)
     x_val = df_cond_scaled.loc[pd.to_datetime(df_conso.index).year == 2018].values.astype(np.float32)
+    weekdays = []
+    months = []
 
-    return x_train, x_val, sc
+    if days:
+        x_monday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 1].values.astype(np.float32)
+        x_tuesday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 2].values.astype(np.float32)
+        x_wednesday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 3].values.astype(np.float32)
+        x_thursday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 4].values.astype(np.float32)
+        x_friday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 5].values.astype(np.float32)
+        x_saturday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 6].values.astype(np.float32)
+        x_sunday = df_cond_scaled.loc[pd.to_datetime(df_conso.index).day == 7].values.astype(np.float32)
+        weekdays = [x_monday, x_tuesday, x_wednesday, x_thursday, x_friday, x_saturday, x_sunday]
+
+    if month:
+        x_january = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 1].values.astype(np.float32)
+        x_february = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 2].values.astype(np.float32)
+        x_march = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 3].values.astype(np.float32)
+        x_april = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 4].values.astype(np.float32)
+        x_may = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 5].values.astype(np.float32)
+        x_june = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 6].values.astype(np.float32)
+        x_july = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 7].values.astype(np.float32)
+        x_august = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 8].values.astype(np.float32)
+        x_september = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 9].values.astype(np.float32)
+        x_october = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 10].values.astype(np.float32)
+        x_november = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 11].values.astype(np.float32)
+        x_december = df_cond_scaled.loc[pd.to_datetime(df_conso.index).month == 12].values.astype(np.float32)
+
+        months = [x_january, x_february, x_march, x_april, x_may, x_june, x_july, x_september, x_october, x_november, x_december]
+
+    return x_train, x_val, sc, weekdays, months
 
 
 def descale(x, sc):
     df = pd.DataFrame(x[:, :49])
     df_descaled = df.apply(lambda x: sc.inverse_transform(x.reshape(-1, 1)).ravel(), axis=1, raw=True).values
     return np.array(list(df_descaled))
-
