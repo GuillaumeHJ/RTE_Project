@@ -2,7 +2,7 @@ import ClementCVAE
 import ClementVAE
 import numpy as np
 import New_load
-
+from sklearn.metrics import mean_squared_error
 
 def generate_scenarios(decoder, test_set, sc, M=100, conditioned=True):
     scenarios = []
@@ -95,9 +95,13 @@ def quantile_score(test_set, scenarios):
         b = np.greater(scenarios[:, q, :] - test_set_np[:, :], np.zeros((n, p)))
         rho_q[:, q - 1, :] = (1 - 0.01 * q) * (scenarios[:, q - 1, :] - test_set_np[:, :]) * b + 0.01 * q * (
                     test_set_np[:, :] - scenarios[:, q, :]) * np.logical_not(b)
+        b = np.greater(quantiles[:, q-1, :] - test_set_np[:, :], np.zeros((n, p)))
+        rho_q[:, q - 1, :] = (1 - 0.01 * q) * (quantiles[:, q - 1, :] - test_set_np[:, :]) * b + 0.01 * q * (
+                    test_set_np[:, :] - quantiles[:, q-1, :]) * np.logical_not(b)
         # (365,99,48)
 
     QS_q = 1 / (n * p) * np.sum(np.sum(rho_q, axis=2), axis=0)  # (99)
     QS = 1 / 99 * np.sum(QS_q)
-
     return QS
+def MSE (test_set, mean_scenarios):
+    return mean_squared_error(test_set, mean_scenarios)

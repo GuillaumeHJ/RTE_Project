@@ -7,8 +7,7 @@ def avg_scenario(X_train, X_val, sc, M):
     n, p = X_val[:, :48].shape
     rescaled_scenarios = New_load.descale(X_train[:, :48], sc)
     avg_scenario = np.mean(rescaled_scenarios, axis=0)
-    return np.broadcast_to(avg_scenario, (n, M, p))
-
+    return np.broadcast_to(avg_scenario, (n, M, p)), np.broadcast_to(avg_scenario, (n, p))
 
 def pca_scenario(X_train, sc, latent_space_dim, M):
     pca = PCA(n_components=latent_space_dim)
