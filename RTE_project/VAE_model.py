@@ -144,18 +144,33 @@ def plot_training(vae, lr, epochs):
     plt.show()
     n = 200
     if conditioned:
-        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n]).unsqueeze(0)).detach(), sc).squeeze(0), label='Genrated Scenario')
+        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n]).unsqueeze(0)).detach(), sc).squeeze(0),
+                 label='Genrated Scenario')
         plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n], label='Real Profile')
         plt.legend()
         plt.title("Conditional VAE")
     else:
 
-        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n][:48]).unsqueeze(0)).detach(), sc).squeeze(0), label='Genrated Scenario')
+        plt.plot(np.arange(48), New_load.descale(vae(torch.Tensor(X_val[n][:48]).unsqueeze(0)).detach(), sc).squeeze(0),
+                 label='Genrated Scenario')
         plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n], label='Real Profile')
         plt.title("Classic VAE")
 
     plt.show()
 
 
-#vae = VAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder, conditioned=True)
-#plot_training(vae, lr, epochs)
+#############################" Code to plot training and scenario generated from random sample #################################
+# n = 200
+# sample = np.random.normal(size=(1, latent_space_dim))
+# sample = torch.Tensor(sample)
+# week_day_one_hot = F.one_hot(torch.Tensor(X_val[n:n+1, 49]).long(), num_classes=7)
+# cond_sample = torch.cat((sample, torch.tensor(X_val[n:n+1, 48, None]), week_day_one_hot), dim=1)
+#
+# vae = VAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder, conditioned=True)
+# plot_training(vae, lr, epochs)
+# plt.plot(np.arange(48), np.squeeze(New_load.descale(
+#     vae.decoder(cond_sample).detach()[:, :48], sc)),
+#          label='Generated Scenario')
+# plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[n], label='Real Profile')
+# plt.legend()
+# plt.show()

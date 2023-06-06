@@ -1,30 +1,30 @@
-import pandas as pd
-
 import ClementCVAE
+import ClementVAE
 import numpy as np
+import New_load
 
 
-def generate_scenarios(decoder, test_set, M=100):
+def generate_scenarios(decoder, test_set, sc, M=100, conditioned=True):
     scenarios = []
     for _ in range(M):
         # Monte Carlo on N(0,1)
         sample = np.random.normal(size=(test_set.shape[0], ClementCVAE.latent_dims))
 
         # Generating scenarios from the latent space
-        generated_scenario = decoder(np.concatenate((sample, test_set[:, 48:50]), axis=1))
+        if conditioned:
+            generated_scenario = decoder(np.concatenate((sample, test_set[:, 48:]), axis=1))
+        else:
+            generated_scenario = decoder(sample)
 
         # Rescaling it
-        df_scenario = pd.DataFrame(generated_scenario[:, :48])
-        df_scenario_descaled = df_scenario.apply(
-            lambda x: ClementCVAE.sc.inverse_transform(x.reshape(-1, 1)).ravel(), axis=1, raw=True).values
-        scenario_descaled = np.array(list(df_scenario_descaled))
+        scenario_descaled = New_load.descale(generated_scenario[:, :48], sc)
         scenarios.append(np.concatenate((scenario_descaled, generated_scenario[:, 48:50]), axis=1))
 
     scenarios = np.swapaxes(np.array(scenarios), 0, 1)
-    mean = np.mean(scenarios, axis=1)
+    median = np.median(scenarios, axis=1)
 
     # Computing biases for each scenario
-    biases = scenarios - mean[:, np.newaxis, :]
+    biases = scenarios - median[:, np.newaxis, :]
 
     # Sorting scenarios according to their biases
     sorted_indices = np.argsort(biases, axis=1)
@@ -36,7 +36,9 @@ def generate_scenarios(decoder, test_set, M=100):
     # print(f"indices : {sorted_indices.shape}")
     # print(f"sorted scenarios : {sorted_scenarios.shape}")
 
-    return sorted_scenarios[:, M // 4, :], mean, sorted_scenarios[:, 3 * M // 4, :], sorted_scenarios
+    return sorted_scenarios[:, M // 4, :], median, sorted_scenarios[:, 3 * M // 4, :], sorted_scenarios
+
+
 
 
 def energy_score(test_set, scenarios):

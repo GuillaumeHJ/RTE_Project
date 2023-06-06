@@ -13,7 +13,8 @@ if clement:
     import scoring_Clement as scoring
 
     X_train, X_val, sc = scoring.ClementCVAE.x_train, scoring.ClementCVAE.x_val, scoring.ClementCVAE.sc
-    q1, median, q3, scenarios = scoring.generate_scenarios(scoring.ClementCVAE.decoder, X_val, M=M)
+    q1, median, q3, scenarios = scoring.generate_scenarios(scoring.ClementCVAE.decoder, X_val, sc=sc, M=M)
+    q1_vae, median_vae, q3_vae, scenarios_vae = scoring.generate_scenarios(scoring.ClementVAE.decoder, X_val, sc=sc, M=M, conditioned=False)
 
 else:
     import scoring_pytorch as scoring
@@ -32,11 +33,18 @@ else:
     epochs = 200
 
     vae_cond = VAE_model.VAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder, conditioned=True)
+    vae = VAE_model.VAE(latent_space_dim, hidden_layer_encoder, hidden_layer_decoder, conditioned=False)
     l, v = vae_cond.train(epochs, lr, train_dataloader, val_dataloader)
 
     q1, median, q3, scenarios = scoring.generate_scenarios(vae_cond.decoder, X_val, latent_space_dim=latent_space_dim,
                                                          sc=sc, M=M)
 
+    q1_vae, median_vae, q3_vae, scenarios_vae = scoring.generate_scenarios(vae.decoder, X_val, latent_space_dim=latent_space_dim,
+                                                           sc=sc, M=M, conditioned=False)
+
+
+
+# Plotting predictions with the CVAE
 day = 200
 plt.plot(np.arange(48), q1[day, :48], color='green', linestyle='dashed', label='Q1')
 plt.plot(np.arange(48), median[day, :48], color='red', linestyle='dashed', label='Median')
@@ -45,12 +53,34 @@ plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[day], label='Real Pr
 plt.legend()
 plt.show()
 
+
+# Plotting predictions with the VAE unconditionned
+plt.plot(np.arange(48), q1_vae[day, :48], color='green', linestyle='dashed', label='Q1')
+plt.plot(np.arange(48), median_vae[day, :48], color='red', linestyle='dashed', label='Median')
+plt.plot(np.arange(48), q3_vae[day, :48], color='blue', linestyle='dashed', label='Q3')
+plt.plot(np.arange(48), New_load.descale(X_val[:, :48], sc)[day], label='Real Profile')
+plt.legend()
+plt.show()
+
 value_energy_score = scoring.energy_score(X_val[:353, :], scenarios[:353, :, :])
 value_variogram_score = scoring.variogram_score(X_val[:353, :], scenarios[:353, :, :])
 value_quantile_score = scoring.quantile_score(X_val[:353, :], scenarios[:353, :, :])
-print('Energy score', value_energy_score)
-print('Variogram score', value_variogram_score)
-print('Quantile score', value_quantile_score)
+print('Energy score CVAE', value_energy_score)
+print('Variogram score CVAE', value_variogram_score)
+print('Quantile score CVAE', value_quantile_score)
+print('////////////////////////////////// VAE unconditioned ////////////////////////////////////////')
+
+value_energy_score_vae = scoring.energy_score(X_val[:353, :], scenarios_vae[:353, :, :])
+value_variogram_score_vae = scoring.variogram_score(X_val[:353, :], scenarios_vae[:353, :, :])
+value_quantile_score_vae = scoring.quantile_score(X_val[:353, :], scenarios_vae[:353, :, :])
+print('Energy score VAE', value_energy_score_vae)
+print('Variogram score VAE', value_variogram_score_vae)
+print('Quantile score VAE', value_quantile_score_vae)
+print('- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+
+print('Rapport Energy score avg', value_energy_score / value_energy_score_vae)
+print('Rapport Variogram score avg', value_variogram_score / value_variogram_score_vae)
+print('Rapport Quantile score avg', value_quantile_score / value_quantile_score_vae)
 print('////////////////////////////////// AVERAGE ////////////////////////////////////////')
 
 

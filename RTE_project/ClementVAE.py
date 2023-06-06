@@ -1,6 +1,8 @@
 import tensorflow.keras as tfk
 import tensorflow as tf
 import New_load as NL
+import matplotlib.pyplot as plt
+import numpy as np
 
 path = "data/"
 x_train, x_val, sc = NL.load(path)
@@ -52,7 +54,38 @@ vae.add_loss(normal_kl_loss(z_mu, z_log_sigma))
 vae.compile(loss="mean_squared_error",
             optimizer="Adam")
 
-# training
-vae.fit(x=x_train[:, :48], y=x_train[:, :48], epochs=120, validation_split=0.1, verbose=0)
+# # training
+vae.fit(x=x_train[:, :48], y=x_train[:, :48], epochs=200, validation_split=0.1, verbose=0)
 
 x_encoded, _ = encoder(x_train[:, :48])
+
+# sample = np.random.normal(size=(1, latent_dims))
+# n=200
+# # plt.plot(np.arange(48), np.squeeze(decoder(np.concatenate((sample, x_val[n:n+1, 48:]), axis=1)[:, :48])), label='Generated Scenario')
+# # plt.plot(np.arange(48), x_val[:, :48][n], label='Real Profile')
+# plt.plot(np.arange(48), np.squeeze(NL.descale(decoder(sample)[:, :48], sc)), label='Generated Scenario')
+# plt.plot(np.arange(48), NL.descale(x_val[:, :48], sc)[n], label='Real Profile')
+# plt.legend()
+# plt.show()
+
+
+
+# history = vae.fit(x=x_train[:, :48], y=x_train[:, :48], epochs=500, validation_split=0.1, verbose=0)
+#
+# # Obtenir les valeurs de loss sur x_train et x_val
+# train_loss = history.history['loss']
+# val_loss = history.history['val_loss']
+#
+# # Tracer les courbes de Loss
+# plt.plot(train_loss, label='Training Loss')
+# plt.plot(val_loss, label='Validation Loss')
+# plt.xlabel('Epoch')
+# plt.ylabel('Loss')
+# plt.legend()
+# plt.show()
+#
+# n=200
+# plt.plot(np.arange(48), np.squeeze(NL.descale(vae(x_val[n:n+1, :48]), sc)), label='Genrated Scenario')
+# plt.plot(np.arange(48), NL.descale(x_val[:, :48], sc)[n], label='Real Profile')
+# plt.show()
+#

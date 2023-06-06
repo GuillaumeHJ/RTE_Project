@@ -6,18 +6,22 @@ import torch
 
 
 
-def generate_scenarios(decoder, test_set, latent_space_dim, sc, M=100):
+def generate_scenarios(decoder, test_set, latent_space_dim, sc, M=100, conditioned=True):
     scenarios = []
     for _ in range(M):
         # Monte Carlo on N(0,1)
         sample = np.random.normal(size=(test_set.shape[0], latent_space_dim))
+        if conditioned:
+            test_set = torch.Tensor(test_set)
+            sample = torch.Tensor(sample)
+            # Generating scenarios from the latent space
+            week_day_one_hot = F.one_hot(test_set[:, 49].long(), num_classes=7)
+            cond_sample = torch.cat((sample, test_set[:, 48, None], week_day_one_hot), dim=1)
+            generated_scenario = decoder(cond_sample)
+        else:
+            sample = torch.Tensor(sample)
+            generated_scenario = decoder(sample)
 
-        test_set = torch.Tensor(test_set)
-        sample = torch.Tensor(sample)
-        # Generating scenarios from the latent space
-        week_day_one_hot = F.one_hot(test_set[:, 49].long(), num_classes=7)
-        cond_sample = torch.cat((sample, test_set[:, 48, None], week_day_one_hot), dim=1)
-        generated_scenario = decoder(cond_sample)
         descaled_scenario = New_load.descale(generated_scenario.detach().numpy(), sc)
         scenarios.append(descaled_scenario)
 
